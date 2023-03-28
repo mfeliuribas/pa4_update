@@ -1,0 +1,35 @@
+
+```{r, load-packages}
+library(tidyverse)
+library(ds4ling)
+library(here)
+library(broom)
+```
+
+```{r, tidy-data-viejo}
+fricatives_tidy_viejo <- fricatives_data %>%
+  pivot_longer(
+    cols = c("s_cog", "sh_cog"),
+    names_to = "phoneme",
+    values_to = "cog"
+  ) %>%
+  pivot_longer(
+    cols = c("s_skewness", "sh_skewness"),
+    names_to = "phoneme1",
+    values_to = "skewness"
+  ) %>%
+  unite(phoneme, phoneme1) %>%
+  relocate(phoneme, .after = obs)
+```
+
+```{r, skewness-as-a-function-of-phoneme-with-summary-PRIMERAVERSION}
+fricatives_tidy %>% 
+ ggplot() + 
+  aes(x = phoneme, y = skewness) + 
+  geom_point() +
+  stat_summary(fun.data = mean_se, geom = "pointrange", pch = 19) + 
+  labs(x = "Phoneme", y = "Skewness",
+       title = "Skewness by Phoneme")
+```
+
+

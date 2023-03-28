@@ -1,0 +1,171 @@
+---
+title: "Programming Assignment 4"
+subtitle: "Data Science for Linguists"
+author: "Meritxell Feliu Ribas"
+institute: "Rutgers University"
+date: "2023/03/27 (updated: `r Sys.Date()`)"
+output:
+  xaringan::moon_reader:
+    css: [default, rutgers, rutgers-fonts]
+---
+
+# Load Packages
+
+```{r, load-packages}
+library(tidyverse)
+library(ds4ling)
+library(here)
+library(broom)
+```
+
+---
+
+# Load Data
+
+```{r, load-data}
+fricatives_data <- read.csv(here("data_raw","fricatives","fricatives.csv"))
+```
+
+---
+
+# Tidy Data
+
+```{r, tidy-data} 
+fricatives_tidy <- fricatives_data %>%
+  pivot_longer(
+    cols = c("s_cog", "sh_cog", "s_skewness", "sh_skewness"),
+    names_to = "cog_skewness",
+    values_to = "values"
+  ) %>%
+  separate(
+    col = "cog_skewness", 
+           into = c("phoneme", "cog_skewness"), 
+           sep = "_"
+  ) %>%
+  pivot_wider(
+    names_from = "cog_skewness",
+    values_from = "values"
+  ) %>%
+  write_csv(here("data_tidy", "fricatives_tidy.csv"))
+```
+
+---
+
+# Descriptive Statistics
+
+```{r, descriptive-statistics}
+fricatives_tidy %>%
+  group_by(phoneme) %>% 
+  summarize(
+    mean_cog = mean(cog),
+    sd_cog = sd(cog),
+    mean_skewness = mean(skewness),
+    sd_skewness = sd(skewness),
+    ) %>%
+  knitr::kable()
+```
+
+---
+
+# Plots
+
+### Center of gravity as a function of phoneme
+
+```{r, cog-as-a-function-of-phoneme, fig.height=4}
+fricatives_tidy %>% 
+ ggplot() + 
+  aes(x = phoneme, y = cog) + 
+  geom_boxplot() +
+  labs(x = "Phoneme", y = "Center of Gravity",
+       title = "Center of Gravity by Phoneme")
+```
+
+---
+
+### Skewness as a function of phoneme with summary
+
+```{r, skewness-as-a-function-of-phoneme-with-summary, fig.height=5}
+fricatives_tidy %>%
+  ggplot() +
+  aes(x = phoneme, y = skewness) +
+  geom_point() +
+  stat_summary(fun.data = "mean_se", geom = "point") +
+  labs(x = "Phoneme", y = "Skewness",
+       title = "Skewness by Phoneme")
+```
+
+---
+
+# Model
+```{r, cog-as-a-function-of-skewness-s}
+# Data transformation
+phoneme_s <- filter(fricatives_tidy, phoneme == "s")
+
+# Model
+model_0 <- lm(cog ~ 1, data = phoneme_s)
+model_s <- lm(cog ~ skewness, data = phoneme_s)
+
+#Nested model comparisons
+anova(model_0, model_s)
+```
+
+---
+
+```{r}
+summary(model_s)
+
+tidy(model_s) %>%
+  knitr::kable(format = "pandoc")
+```
+
+---
+
+# Scatter plot of model_s
+```{r, scatterplot-model_s, fig.height=4}
+phoneme_s %>% 
+  ggplot() + 
+  aes(x = skewness, y = cog) + 
+  geom_point() +
+  geom_smooth(method = lm) +
+  labs(y = "Center of Gravity", x = "Skewness",
+       title = "Center of Gravity by Skewness of the [s] Phoneme")
+```
+
+---
+
+# Model Diagnosis
+
+```{r, model-diagnosis, fig.height=6}
+diagnosis(model_s)
+```
+
+---
+
+# Results
+The data were analyzed using a linear regression model to examine the relationship between the center of gravity and the skewness of the phoneme [s]. The model included *center of gravity* as a dependent variable and *skewness* as a predictor. Main effects were assessed using nested model comparisons. Experiment-wise alpha was set at 0.05. 
+
+A linear relationship between skewness and center of gravity can be observed. In our model, nearly 88% of the variance found in center of gravity can be explained by skewness (adjusted R-squared = 0.8771). Specifically, a one unit increase in skewness is associated with an increase of 3029.1 in center of gravity (SE = 259.1, t = 11.69, p < 0.001). The data is approximately normal distributed based on the Q-Q plot. There is a main effect of skewness (F(1) = 136.64, p < 0.001). 
+
+---
+
+# Assumptions
+
+```{r, load-data-assumptions}
+assumptions_data <- read.csv(here("data_raw","fricatives","assumptions.csv"))
+```
+
+```{r, scatterplot-assumptions, fig.width=6, fig.height=4}
+assumptions_data %>% 
+  ggplot() + 
+  aes(x = x, y = y) + 
+  geom_point() +
+  labs(title = "Assumptions")
+```
+
+(Thanks Joseph, this dinosaur made my day!)
+
+---
+### Comment about the assumptions dataset
+
+The assumptions dataset would not be appropriate to fit this to a linear model because the relationship between the data is not linear, as we can see in the scatter plot (it is a dinosaur!). There may be a relationship between these two variables, but a linear model is not a suitable method to analyze them. 
+
